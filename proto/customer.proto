@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package customer;
+
+service CustomerService {
+  rpc EnsureCustomer (EnsureCustomerRequest) returns (CustomerResponse);
+  rpc GetCustomer (GetCustomerRequest) returns (CustomerResponse);
+  rpc UpdateCustomer (UpdateCustomerRequest) returns (CustomerResponse);
+  rpc ListMemberships (MembershipListRequest) returns (MembershipListResponse);
+  rpc GetMembership (MembershipIdRequest) returns (MembershipResponse);
+  rpc CreateMembership (MembershipWriteRequest) returns (MembershipResponse);
+  rpc UpdateMembership (MembershipWriteRequest) returns (MembershipResponse);
+  rpc DeleteMembership (MembershipIdRequest) returns (MembershipDeleteResponse);
+  rpc SetCustomerMembership (CustomerMembershipRequest) returns (CustomerResponse);
+  rpc Health (HealthRequest) returns (HealthResponse);
+}
+
+message EnsureCustomerRequest {
+  int32 uid = 1;
+}
+
+message GetCustomerRequest {
+  int32 uid = 1;
+}
+
+message UpdateCustomerRequest {
+  int32 uid = 1;
+  string fullname = 2;
+  optional int32 mid = 3;
+}
+
+message CustomerResponse {
+  int32 uid = 1;
+  string fullname = 2;
+  int32 mid = 3;
+  string mname = 4;
+  int32 score = 5;
+}
+message MembershipListRequest {}
+
+message MembershipIdRequest {
+  int32 mid = 1;
+}
+
+message MembershipWriteRequest {
+  int32 mid = 1;
+  string mname = 2;
+  int32 score = 3;
+}
+
+message MembershipResponse {
+  int32 mid = 1;
+  string mname = 2;
+  int32 score = 3;
+}
+
+message MembershipListResponse {
+  repeated MembershipResponse items = 1;
+}
+
+message MembershipDeleteResponse {
+  int32 mid = 1;
+  string message = 2;
+}
+
+message CustomerMembershipRequest {
+  int32 uid = 1;
+  int32 mid = 2;
+}
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}

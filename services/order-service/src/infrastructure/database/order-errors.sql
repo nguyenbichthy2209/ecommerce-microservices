@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE order_requests
+ADD COLUMN IF NOT EXISTS failure_code VARCHAR(30);
+
+COMMIT;

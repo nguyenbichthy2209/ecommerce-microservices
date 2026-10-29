@@ -1,0 +1,16 @@
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS customer_outbox (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    uid INTEGER NOT NULL UNIQUE REFERENCES users(uid),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS customer_outbox_pending_idx
+ON customer_outbox (next_attempt_at)
+WHERE completed_at IS NULL;
+
+COMMIT;

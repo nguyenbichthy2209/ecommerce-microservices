@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package order;
+
+service OrderService {
+  rpc CreateOrder (CreateOrderRequest) returns (OrderSubmissionResponse);
+  rpc GetOrderRequest (GetOrderRequestQuery) returns (OrderSubmissionResponse);
+  rpc GetOrder (GetOrderRequest) returns (OrderResponse);
+  rpc ListOrders (ListOrdersRequest) returns (ListOrdersResponse);
+  rpc Health (HealthRequest) returns (HealthResponse);
+}
+
+message OrderItemRequest {
+  int32 pid = 1;
+  int32 qty = 2;
+}
+
+message CreateOrderRequest {
+  int32 uid = 1;
+  string request_key = 2;
+  repeated OrderItemRequest items = 3;
+}
+
+message GetOrderRequestQuery {
+  int32 requester_uid = 1;
+  string request_key = 2;
+}
+
+message OrderSubmissionResponse {
+  string request_id = 1;
+  string request_key = 2;
+  string request_status = 3;
+  OrderResponse order = 4;
+  string failure_code = 5;
+  string failure_message = 6;
+}
+
+message GetOrderRequest {
+  int32 oid = 1;
+  int32 requester_uid = 2;
+  string requester_role = 3;
+}
+
+message ListOrdersRequest {
+  int32 requester_uid = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message OrderDetail {
+  int32 pid = 1;
+  int32 qty = 2;
+  string unit_price = 3;
+}
+
+message OrderResponse {
+  int32 oid = 1;
+  int32 uid = 2;
+  string status = 3;
+  int32 score_snapshot = 4;
+  string discount_rate = 5;
+  string subtotal = 6;
+  string discount = 7;
+  string total_amount = 8;
+  repeated OrderDetail items = 9;
+  string created_at = 10;
+}
+
+message ListOrdersResponse {
+  repeated OrderResponse items = 1;
+}
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}

@@ -1,0 +1,166 @@
+services:
+  shipment-service:
+    build:
+      context: .
+      dockerfile: services/shipment-service/Dockerfile
+    command: ["node", "src/server.js"]
+    environment:
+      MONGODB_URL: mongodb://shipment-db:27017
+      GRPC_ADDRESS: 0.0.0.0:50055
+    depends_on:
+      shipment-db:
+        condition: service_healthy
+  shipment-consumer:
+    build:
+      context: .
+      dockerfile: services/shipment-service/Dockerfile
+    restart: on-failure
+    stop_grace_period: 45s
+    environment:
+      MONGODB_URL: mongodb://shipment-db:27017
+      KAFKA_BROKERS: kafka:9092
+      ORDER_CREATED_TOPIC: order-created
+    depends_on:
+      shipment-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+  order-outbox-publisher:
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
+    command: ["node", "src/outbox.publisher.js"]
+    restart: on-failure
+    stop_grace_period: 45s
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@order-db:5432/order_db
+      KAFKA_BROKERS: kafka:9092
+      ORDER_CREATED_TOPIC: order-created
+    depends_on:
+      order-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+  order-worker:
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
+    command: ["node", "src/order.worker.js"]
+    stop_grace_period: 45s
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@order-db:5432/order_db
+      PROTO_DIR: /app/proto
+      CUSTOMER_GRPC_ADDRESS: customer-service:50052
+      PRODUCT_GRPC_ADDRESS: product-service:50053
+    depends_on:
+      order-db:
+        condition: service_healthy
+      customer-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+  order-service:
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@order-db:5432/order_db
+      PROTO_DIR: /app/proto
+      CUSTOMER_GRPC_ADDRESS: customer-service:50052
+      PRODUCT_GRPC_ADDRESS: product-service:50053
+    depends_on:
+      order-db:
+        condition: service_healthy
+  product-db:
+    command: ["mongod", "--replSet", "product-rs", "--bind_ip_all"]
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+    environment:
+      MONGODB_URL: mongodb://product-db:27017/product_db?replicaSet=product-rs
+      GRPC_ADDRESS: 0.0.0.0:50053
+    depends_on:
+      product-db:
+        condition: service_healthy
+  auth-customer-worker:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    command: ["node", "src/customer.worker.js"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@auth-db:5432/auth_db
+      CUSTOMER_PROTO_PATH: /app/proto/customer.proto
+      CUSTOMER_GRPC_ADDRESS: customer-service:50052
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      customer-service:
+        condition: service_started
+  customer-service:
+    build:
+      context: .
+      dockerfile: services/customer-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@customer-db:5432/customer_db
+      GRPC_ADDRESS: 0.0.0.0:50052
+    depends_on:
+      customer-db:
+        condition: service_healthy
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      PORT: 3000
+      AUTH_GRPC_ADDRESS: auth-service:50051
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      auth-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@auth-db:5432/auth_db
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      GRPC_ADDRESS: 0.0.0.0:50051
+    depends_on:
+      auth-db:
+        condition: service_healthy
+  kafka:
+    image: apache/kafka:3.9.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list > /dev/null 2>&1
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  kafka-data:

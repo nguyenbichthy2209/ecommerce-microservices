@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package shipment;
+
+service ShipmentService {
+  rpc GetShipment (GetShipmentRequest) returns (ShipmentResponse);
+  rpc GetShipmentByOrder (GetShipmentByOrderRequest) returns (ShipmentResponse);
+  rpc UpdateShipmentStatus (UpdateShipmentStatusRequest) returns (ShipmentResponse);
+  rpc Health (HealthRequest) returns (HealthResponse);
+}
+
+message GetShipmentRequest {
+  int32 shipid = 1;
+  int32 requester_uid = 2;
+  string requester_role = 3;
+}
+
+message UpdateShipmentStatusRequest {
+  int32 shipid = 1;
+  string status = 2;
+  int32 requester_uid = 3;
+  string requester_role = 4;
+}
+
+message ShipmentResponse {
+  int32 shipid = 1;
+  int32 oid = 2;
+  int32 uid = 3;
+  string status = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+message GetShipmentByOrderRequest {
+  int32 oid = 1;
+  int32 requester_uid = 2;
+  string requester_role = 3;
+}
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}
